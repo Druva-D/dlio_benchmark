@@ -23,6 +23,7 @@ import numpy as np
 
 # Reduce TF and CUDA logging
 from numpy import random
+from tqdm import tqdm
 
 from dlio_benchmark.checkpointing.checkpointing_factory import CheckpointingFactory
 from dlio_benchmark.common.constants import MODULE_DLIO_BENCHMARK
@@ -328,7 +329,7 @@ class DLIOBenchmark(object):
         self.stats.start_block(epoch, block)
         loader = self.framework.get_loader(dataset_type=DatasetType.TRAIN)
         self.stats.start_loading()
-        for batch in loader.next():
+        for batch in tqdm(loader.next()):
             self.stats.batch_loaded(epoch, overall_step, block)
             computation_time = self.args.computation_time
             if (isinstance(computation_time, dict) and len(computation_time) > 0) or (isinstance(computation_time, float) and  computation_time > 0):
@@ -361,7 +362,7 @@ class DLIOBenchmark(object):
             if block_step == 1 and block != 1:
                 self.stats.start_block(epoch, block)
             self.stats.start_loading()
-
+        self.framework.finalize()
         self.comm.barrier()
         if self.do_checkpoint and (self.steps_between_checkpoints < 0) and (epoch == self.next_checkpoint_epoch):
             self.stats.end_block(epoch, block, block_step-1)

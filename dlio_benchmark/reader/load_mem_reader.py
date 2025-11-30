@@ -23,9 +23,9 @@ from dlio_benchmark.utils.utility import Profile
 dlp = Profile(MODULE_DATA_READER)
 
 
-class SyntheticReader(FormatReader):
+class LoadMemReader(FormatReader):
     """
-    Reader for Synthetic dataset - returns zeros
+    Reader for Synethic dataset
     """
 
     @dlp.log_init
@@ -49,17 +49,13 @@ class SyntheticReader(FormatReader):
         while True:
             batch = []
             for i in range(self.batch_size):
-                # Return zeros instead of resized_image
-                shape = self._args.resized_image.shape
-                batch.append(np.zeros(shape, dtype=self._args.resized_image.dtype))
+                batch.append(self._args.resized_image)
             yield batch
 
     @dlp.log
     def read_index(self, image_idx, step):
         dlp.update(step=step)
-        # Return zeros instead of resized_image
-        shape = self._args.resized_image.shape
-        return np.zeros(shape, dtype=self._args.resized_image.dtype)
+        return self._args.resized_image
 
     @dlp.log
     def finalize(self):

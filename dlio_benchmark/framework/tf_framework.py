@@ -102,6 +102,10 @@ class TFFramework(Framework):
                   )
         else:
             self._model.compute(batch)
+
+    def finalize(self):
+        if self._model is not None:
+            self._model.finalize()
         
 
     @dlp.log
