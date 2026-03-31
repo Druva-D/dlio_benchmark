@@ -34,7 +34,7 @@ import importlib.util
 # UTC timestamp format with microsecond precision
 from dlio_benchmark.common.enumerations import LoggerType, MPIState
 try:
-    from dftracer.logger import dftracer as PerfTrace, dft_fn as Profile, DFTRACER_ENABLE as DFTRACER_ENABLE
+    from dftracer.python.logger import dftracer as PerfTrace, dft_fn as Profile, DFTRACER_ENABLE as DFTRACER_ENABLE
 except:
     class Profile(object):
         def __init__(self,  cat, name=None, epoch=None, step=None, image_idx=None, image_size=None):
@@ -136,9 +136,10 @@ class DLIOMPI:
             DLIOMPI.__instance = self
 
     @staticmethod
-    def get_instance():
+    def get_instance() -> "DLIOMPI":
         if DLIOMPI.__instance is None:
             DLIOMPI()
+        assert DLIOMPI.__instance is not None
         return DLIOMPI.__instance
 
     @staticmethod

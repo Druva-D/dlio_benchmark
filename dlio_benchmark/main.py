@@ -23,7 +23,6 @@ import numpy as np
 
 # Reduce TF and CUDA logging
 from numpy import random
-from tqdm import tqdm
 
 from dlio_benchmark.checkpointing.checkpointing_factory import CheckpointingFactory
 from dlio_benchmark.common.constants import MODULE_DLIO_BENCHMARK
@@ -41,7 +40,7 @@ from omegaconf import DictConfig, OmegaConf
 from dlio_benchmark.utils.statscounter import StatsCounter
 from hydra.core.config_store import ConfigStore
 from dlio_benchmark.utils.config import LoadConfig, ConfigArguments, GetConfig
-from dlio_benchmark.common.enumerations import Model, Profiler, DatasetType, StorageType, MetadataType, FormatType
+from dlio_benchmark.common.enumerations import Model, Profiler, DatasetType, StorageType, MetadataType, FormatType, DataLoaderType
 from dlio_benchmark.profiler.profiler_factory import ProfilerFactory
 from dlio_benchmark.framework.framework_factory import FrameworkFactory
 from dlio_benchmark.data_generator.generator_factory import GeneratorFactory
@@ -216,10 +215,10 @@ class DLIOBenchmark(object):
                     file_list_train = fullpaths
                 elif dataset_type is DatasetType.VALID:
                     file_list_eval = fullpaths
-            if not self.generate_only and self.num_files_train > len(file_list_train):
+            if not self.generate_only and self.num_files_train > len(file_list_train) and self.args.data_loader != DataLoaderType.SYNTHETIC:
                 raise Exception(
                     "Not enough training dataset is found; Please run the code with ++workload.workflow.generate_data=True")
-            if self.do_eval and self.num_files_eval > len(file_list_eval):
+            if self.do_eval and self.num_files_eval > len(file_list_eval) and self.args.data_loader != DataLoaderType.SYNTHETIC:
                 raise Exception(
                     "Not enough evaluation dataset is found; Please run the code with ++workload.workflow.generate_data=True")
             if (self.num_files_train < len(file_list_train)):
@@ -329,7 +328,7 @@ class DLIOBenchmark(object):
         self.stats.start_block(epoch, block)
         loader = self.framework.get_loader(dataset_type=DatasetType.TRAIN)
         self.stats.start_loading()
-        for batch in tqdm(loader.next()):
+        for batch in loader.next():
             self.stats.batch_loaded(epoch, overall_step, block)
             computation_time = self.args.computation_time
             if (isinstance(computation_time, dict) and len(computation_time) > 0) or (isinstance(computation_time, float) and  computation_time > 0):
@@ -362,7 +361,6 @@ class DLIOBenchmark(object):
             if block_step == 1 and block != 1:
                 self.stats.start_block(epoch, block)
             self.stats.start_loading()
-        self.framework.finalize()
         self.comm.barrier()
         if self.do_checkpoint and (self.steps_between_checkpoints < 0) and (epoch == self.next_checkpoint_epoch):
             self.stats.end_block(epoch, block, block_step-1)
@@ -422,6 +420,8 @@ class DLIOBenchmark(object):
                     self.framework.get_loader(DatasetType.VALID).finalize()
                 self.args.reconfigure(epoch + 1) # reconfigure once per epoch
                 self.stats.end_epoch(epoch)
+            # Finalize framework after all epochs complete
+            self.framework.finalize()
 
         if (self.args.checkpoint_only):
             self._checkpoint()            
