@@ -16,7 +16,6 @@
 """
 import logging
 import math
-import numpy as np
 import os
 import time
 import torch
@@ -35,7 +34,7 @@ class SyntheticDataLoader(BaseDataLoader):
     def __init__(self, format_type, dataset_type, epoch):
         super().__init__(format_type, dataset_type, epoch, DataLoaderType.SYNTHETIC)
         shape = self._args.resized_image.shape
-        
+
         # Calculate local samples for this rank
         total_samples = self.num_samples
         samples_per_proc = int(math.ceil(total_samples / self._args.comm_size))
@@ -44,15 +43,17 @@ class SyntheticDataLoader(BaseDataLoader):
         if end_sample > total_samples - 1:
             end_sample = total_samples - 1
         local_num_samples = end_sample - start_sample + 1
-        
+
         # Calculate number of batches
         self.num_batches = int(math.ceil(local_num_samples / self.batch_size))
-        
-        # Pre-create a batch of zeros
-        # Use pinned torch tensor instead, and expand to 4D to avoid overhead in validate_data
-        # Original logic in validate_data: data.unsqueeze(1).repeat(1, 3, 1, 1)
-        # This converts (N, H, W) -> (N, 3, H, W)
-        self.zero_batch = torch.zeros((self.batch_size, 3, shape[0], shape[1]), dtype=torch.uint8).pin_memory()
+
+        # Pre-create a batch matching what the pytorch DataLoader would produce:
+        # each sample is resized_image with shape (H, W), collated into (B, H, W).
+        # Use resized_image.shape directly so this works for any dimensionality.
+        self.zero_batch = torch.zeros(
+            (self.batch_size, *shape),
+            dtype=torch.uint8,
+        ).pin_memory()
 
     @dlp.log
     def read(self, init=False):
